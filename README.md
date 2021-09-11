@@ -1,6 +1,6 @@
 # configurator
 
-A Go configurator library powered by Viper and Hashicorp Vault
+A Go configurator library powered by Viper
 
 ## Example
 Create your own struct and optionally tag the fields with default values, environment variables and
