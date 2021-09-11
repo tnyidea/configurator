@@ -1,4 +1,4 @@
-module github.com/gbnyc26/config-go
+module github.com/gbnyc26/configurator
 
 go 1.16
 
