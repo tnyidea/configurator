@@ -3,7 +3,8 @@
 A Go configurator library powered by Viper and Hashicorp Vault
 
 ## Example
-Create your own struct and tag default values, environment variables and if the value is required
+Create your own struct and optionally tag the fields with default values, environment variables and
+if the value is required
 ```go
 package myserver
 
