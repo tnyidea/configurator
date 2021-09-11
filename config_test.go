@@ -135,3 +135,8 @@ func TestParseEnvConfig(t *testing.T) {
 
 	log.Println(&config)
 }
+
+func TestAWSService(t *testing.T) {
+	serviceKey := os.Getenv("AWS_SERVICE_KEY")
+	log.Println("SERVICE KEY EMPTY:", serviceKey == "")
+}
