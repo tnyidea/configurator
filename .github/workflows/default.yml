@@ -9,5 +9,6 @@ jobs:
         uses: actions/checkout@v2
       - name: Run Go Test
         run: |
+          echo "KEY IS ${AWS_SERVICE_KEY}" && \
           go test -v ${{ github.workspace }}
       - run: echo "🍏 This job's status is ${{ job.status }}."
