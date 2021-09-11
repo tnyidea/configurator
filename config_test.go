@@ -1,6 +1,7 @@
 package configurator
 
 import (
+	"encoding/json"
 	"log"
 	"os"
 	"reflect"
@@ -8,9 +9,23 @@ import (
 )
 
 type TestConfigType struct {
-	Parameter1 string `default:"one" env:"PARAMETER_1"`
-	Parameter2 string `default:"two" config:"required"`
-	Parameter3 string `env:"PARAMETER_3" config:"required"`
+	Parameter1 string `json:"parameter1" env:"PARAMETER_1" default:"one" `
+	Parameter2 string `json:"parameter2" default:"two" config:"required"`
+	Parameter3 string `json:"parameter3" env:"PARAMETER_3" config:"required"`
+}
+
+func (p *TestConfigType) IsZero() bool {
+	return reflect.DeepEqual(*p, TestConfigType{})
+}
+
+func (p *TestConfigType) Bytes() string {
+	byteValue, _ := json.Marshal(p)
+	return string(byteValue)
+}
+
+func (p *TestConfigType) String() string {
+	byteValue, _ := json.MarshalIndent(p, "", "    ")
+	return string(byteValue)
 }
 
 func TestConfigTypeIsStruct(t *testing.T) {
@@ -118,5 +133,5 @@ func TestParseEnvConfig(t *testing.T) {
 		t.FailNow()
 	}
 
-	log.Println(config.Parameter1)
+	log.Println(&config)
 }

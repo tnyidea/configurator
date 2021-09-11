@@ -8,9 +8,9 @@ import (
 )
 
 func ParseEnvConfig(configType interface{}, configFile ...string) error {
-	//if !reflect.ValueOf(configType).CanAddr() {
-	//	return errors.New("invalid configType: must pass address to configType")
-	//}
+	if reflect.ValueOf(configType).Kind() != reflect.Ptr {
+		return errors.New("invalid configType: must pass address to configType")
+	}
 
 	viperConfig := viper.New()
 
