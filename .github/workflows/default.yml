@@ -7,7 +7,7 @@ jobs:
     env:
       AWS_SERVICE_KEY: ${{ secrets.AWS_SERVICE_KEY }}
     steps:
-      - name: Check out repository code
+      - name: Checkout Repository Code
         uses: actions/checkout@v2
       - name: Run Go Test
         run: |
