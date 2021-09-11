@@ -1,4 +1,4 @@
-module github.com/gbnyc26/address-book
+module github.com/gbnyc26/config-go
 
 go 1.16
 
