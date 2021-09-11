@@ -7,19 +7,23 @@ import (
 	"strings"
 )
 
-func ParseEnvConfig(configType interface{}, filename string) (interface{}, error) {
+func ParseEnvConfig(configType interface{}, configFile ...string) error {
+	//if !reflect.ValueOf(configType).CanAddr() {
+	//	return errors.New("invalid configType: must pass address to configType")
+	//}
+
 	viperConfig := viper.New()
 
 	// Get configuration key names and validate config type
 	keys, err := keyNames(configType)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
 	// At this point, we know that configType is a struct with string fields only
 
 	// Parse configuration defaults
-	defaults := parseTags(configType, keys, "default")
+	defaults := parseTag(configType, keys, "default")
 	for _, k := range keys {
 		if v, ok := defaults[k]; ok {
 			viperConfig.SetDefault(k, v)
@@ -27,7 +31,7 @@ func ParseEnvConfig(configType interface{}, filename string) (interface{}, error
 	}
 
 	// Bind environment variables
-	env := parseTags(configType, keys, "env")
+	env := parseTag(configType, keys, "env")
 	for _, k := range keys {
 		if v, ok := env[k]; ok {
 			_ = viperConfig.BindEnv(k, v)
@@ -35,11 +39,15 @@ func ParseEnvConfig(configType interface{}, filename string) (interface{}, error
 	}
 
 	// Parse configuration file (if provided) filename := filenameBinding(configType)
+	var filename string
+	if configFile != nil {
+		filename = configFile[0]
+	}
 	if filename != "" {
 		viperConfig.SetConfigFile(filename)
 		err := viperConfig.ReadInConfig()
 		if err != nil {
-			return nil, err
+			return errors.New("invalid configuration: " + err.Error())
 		}
 	}
 
@@ -47,32 +55,29 @@ func ParseEnvConfig(configType interface{}, filename string) (interface{}, error
 	viperConfig.AutomaticEnv()
 
 	// Validate Configuration
-	required := parseTags(configType, keys, "required")
+	required := requiredKeys(configType, keys)
 	var flag bool
 	var messages []string
-	for _, k := range keys {
-		v, ok := required[k]
-		if ok && v == "true" && !viperConfig.IsSet(k) {
+	for k, v := range required {
+		if v && !viperConfig.IsSet(k) {
 			messages = append(messages, k+" not set")
 			flag = true
 		}
 	}
 	if flag {
-		return nil, errors.New("invalid configuration: missing required values:\n" + strings.Join(messages, "\n"))
+		return errors.New("invalid configuration: missing required values:\n" + strings.Join(messages, "\n"))
 	}
 
-	ps := reflect.New(reflect.TypeOf(configType))
+	s := reflect.ValueOf(configType).Elem()
 	for _, k := range keys {
-		s := ps.Elem()
-		f := s.FieldByName(k)
-		f.SetString(viperConfig.GetString(k))
+		s.FieldByName(k).SetString(viperConfig.GetString(k))
 	}
 
-	return ps, nil
+	return nil
 }
 
 func keyNames(configType interface{}) ([]string, error) {
-	s := reflect.ValueOf(&configType).Elem()
+	s := reflect.ValueOf(configType).Elem()
 
 	if s.Kind() != reflect.Struct {
 		return nil, errors.New("invalid configType: not a struct")
@@ -90,10 +95,25 @@ func keyNames(configType interface{}) ([]string, error) {
 	return result, nil
 }
 
-func parseTags(configType interface{}, keys []string, tagName string) map[string]string {
-	s := reflect.ValueOf(&configType).Elem()
+func requiredKeys(configType interface{}, keys []string) map[string]bool {
+	requiredTags := parseTag(configType, keys, "config")
 
-	var result map[string]string
+	result := make(map[string]bool)
+	for _, k := range keys {
+		if v, ok := requiredTags[k]; !ok {
+			result[k] = false
+		} else {
+			result[k] = strings.Contains(v, "required")
+		}
+	}
+
+	return result
+}
+
+func parseTag(configType interface{}, keys []string, tagName string) map[string]string {
+	s := reflect.ValueOf(configType).Elem()
+
+	result := make(map[string]string)
 	for _, k := range keys {
 		f, _ := s.Type().FieldByName(k)
 		v := f.Tag.Get(tagName)
