@@ -1,12 +1,12 @@
 name: Default Workflow
 on: [push]
 jobs:
-  run_test_cases:
+  test_cases:
     runs-on: ubuntu-latest
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
       - name: Run Go Test
         run: |
-          go test ${{ github.workspace }}
+          go test -v ${{ github.workspace }}
       - run: echo "🍏 This job's status is ${{ job.status }}."
