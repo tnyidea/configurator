@@ -4,6 +4,8 @@ jobs:
   test_cases:
     runs-on: ubuntu-latest
     environment: test
+    env:
+      AWS_SERVICE_KEY: ${{ secrets.AWS_SERVICE_KEY }}
     steps:
       - name: Check out repository code
         uses: actions/checkout@v2
