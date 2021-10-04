@@ -4,18 +4,21 @@ import (
 	"errors"
 	"github.com/spf13/viper"
 	"reflect"
+	"sort"
 	"strings"
 )
 
 func ParseEnvConfig(configType interface{}, configFile ...string) error {
-	if reflect.ValueOf(configType).Kind() != reflect.Ptr {
-		return errors.New("invalid configType: must pass address to configType")
+	// configType must be a pointer to a struct
+	err := checkConfigTypeKind(configType)
+	if err != nil {
+		return err
 	}
 
 	viperConfig := viper.New()
 
 	// Get configuration key names and validate config type
-	keys, err := keyNames(configType)
+	keys, _, err := keyValueMap(configType)
 	if err != nil {
 		return err
 	}
@@ -55,11 +58,48 @@ func ParseEnvConfig(configType interface{}, configFile ...string) error {
 	viperConfig.AutomaticEnv()
 
 	// Validate Configuration
+	//required := requiredKeys(configType, keys)
+	//if err != nil {
+	//	return err
+	//}
+	//var flag bool
+	//var messages []string
+	//for k, v := range required {
+	//	if v && !viperConfig.IsSet(k) {
+	//		messages = append(messages, k+" not set")
+	//		flag = true
+	//	}
+	//}
+	//if flag {
+	//	return errors.New("invalid configuration: missing required values:\n" + strings.Join(messages, "\n"))
+	//}
+	//
+	e := reflect.ValueOf(configType).Elem()
+	for _, k := range keys {
+		e.FieldByName(k).SetString(viperConfig.GetString(k))
+	}
+
+	return nil
+}
+
+func ValidateConfig(configType interface{}) error {
+	// configType must be a pointer to a struct
+	err := checkConfigTypeKind(configType)
+	if err != nil {
+		return err
+	}
+
+	// Get configuration key names, values, and required keys
+	keys, keyValues, err := keyValueMap(configType)
+	if err != nil {
+		return err
+	}
 	required := requiredKeys(configType, keys)
+
 	var flag bool
 	var messages []string
 	for k, v := range required {
-		if v && !viperConfig.IsSet(k) {
+		if v && keyValues[k] == "" {
 			messages = append(messages, k+" not set")
 			flag = true
 		}
@@ -68,34 +108,44 @@ func ParseEnvConfig(configType interface{}, configFile ...string) error {
 		return errors.New("invalid configuration: missing required values:\n" + strings.Join(messages, "\n"))
 	}
 
-	s := reflect.ValueOf(configType).Elem()
-	for _, k := range keys {
-		s.FieldByName(k).SetString(viperConfig.GetString(k))
+	return nil
+}
+
+func checkConfigTypeKind(configType interface{}) error {
+	// configType must be a pointer to a struct
+	if reflect.ValueOf(configType).Kind() != reflect.Ptr {
+		return errors.New("invalid configType: must be a pointer to a struct")
+	}
+	if reflect.Indirect(reflect.ValueOf(configType)).Kind() != reflect.Struct {
+		return errors.New("invalid configType: not a struct")
 	}
 
 	return nil
 }
 
-func keyNames(configType interface{}) ([]string, error) {
-	s := reflect.ValueOf(configType).Elem()
+func keyValueMap(configType interface{}) ([]string, map[string]string, error) {
+	// assume configType is a pointer to a struct, caller must first use checkConfigTypeKind
 
-	if s.Kind() != reflect.Struct {
-		return nil, errors.New("invalid configType: not a struct")
-	}
+	e := reflect.ValueOf(configType).Elem()
 
-	var result []string
-	for i := 0; i < s.NumField(); i++ {
-		f := s.Type().Field(i)
+	var keys []string
+	keyValues := make(map[string]string)
+	for i := 0; i < e.NumField(); i++ {
+		f := e.Type().Field(i)
 		if f.Type.Kind() != reflect.String {
-			return nil, errors.New("invalid configType: struct fields must be of type string")
+			return nil, nil, errors.New("invalid configType: struct fields must be of type string")
 		}
-		result = append(result, f.Name)
+		keys = append(keys, f.Name)
+		keyValues[f.Name] = e.Field(i).String()
 	}
+	sort.Strings(keys)
 
-	return result, nil
+	return keys, keyValues, nil
 }
 
 func requiredKeys(configType interface{}, keys []string) map[string]bool {
+	// assume configType is a pointer to a struct, caller must first use checkConfigTypeKind
+
 	requiredTags := parseTag(configType, keys, "config")
 
 	result := make(map[string]bool)
@@ -111,16 +161,18 @@ func requiredKeys(configType interface{}, keys []string) map[string]bool {
 }
 
 func parseTag(configType interface{}, keys []string, tagName string) map[string]string {
-	s := reflect.ValueOf(configType).Elem()
+	// assume configType is a pointer to a struct, caller must first use checkConfigTypeKind
 
-	result := make(map[string]string)
+	e := reflect.ValueOf(configType).Elem()
+
+	tagValues := make(map[string]string)
 	for _, k := range keys {
-		f, _ := s.Type().FieldByName(k)
+		f, _ := e.Type().FieldByName(k)
 		v := f.Tag.Get(tagName)
 		if v != "" {
-			result[k] = v
+			tagValues[k] = v
 		}
 	}
 
-	return result
+	return tagValues
 }

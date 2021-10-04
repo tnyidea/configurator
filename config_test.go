@@ -28,18 +28,106 @@ func (p *TestConfigType) String() string {
 	return string(byteValue)
 }
 
-func TestConfigTypeIsStruct(t *testing.T) {
-	configType := &TestConfigType{}
+func TestConfigTypeIsStructCase1(t *testing.T) {
+	var configType TestConfigType
 
-	if reflect.ValueOf(configType).Elem().Kind() != reflect.Struct {
+	ptr := &configType
+
+	// configType must be a pointer to a struct
+	if reflect.ValueOf(ptr).Kind() != reflect.Ptr {
+		log.Println("invalid configType: must be a pointer to a struct")
+		t.FailNow()
+	}
+	if reflect.Indirect(reflect.ValueOf(ptr)).Kind() != reflect.Struct {
+		log.Println("invalid configType: not a struct")
 		t.FailNow()
 	}
 }
 
-func TestKeyNames(t *testing.T) {
+func TestConfigTypeIsStructCase2(t *testing.T) {
+	configType := TestConfigType{}
+
+	ptr := &configType
+
+	// configType must be a pointer to a struct
+	if reflect.ValueOf(ptr).Kind() != reflect.Ptr {
+		log.Println("invalid configType: must be a pointer to a struct")
+		t.FailNow()
+	}
+	if reflect.Indirect(reflect.ValueOf(ptr)).Kind() != reflect.Struct {
+		log.Println("invalid configType: not a struct")
+		t.FailNow()
+	}
+}
+
+func TestConfigTypeIsStructCase3(t *testing.T) {
+	configType := TestConfigType{
+		Parameter1: "One",
+		Parameter2: "Two",
+		Parameter3: "Three",
+	}
+
+	ptr := &configType
+
+	// configType must be a pointer to a struct
+	if reflect.ValueOf(ptr).Kind() != reflect.Ptr {
+		log.Println("invalid configType: must be a pointer to a struct")
+		t.FailNow()
+	}
+	if reflect.Indirect(reflect.ValueOf(ptr)).Kind() != reflect.Struct {
+		log.Println("invalid configType: not a struct")
+		t.FailNow()
+	}
+}
+
+func TestConfigTypeIsStructCase4(t *testing.T) {
 	var configType TestConfigType
 
-	keys, err := keyNames(&configType)
+	ptr := &configType
+
+	// configType must be a pointer to a struct
+	if reflect.ValueOf(ptr).Kind() != reflect.Ptr {
+		log.Println("invalid configType: must be a pointer to a struct")
+		t.FailNow()
+	}
+	if reflect.Indirect(reflect.ValueOf(ptr)).Kind() != reflect.Struct {
+		log.Println("invalid configType: not a struct")
+		t.FailNow()
+	}
+}
+
+func TestConfigTypeIsStructCase5(t *testing.T) {
+	configType := TestConfigType{
+		Parameter1: "One",
+		Parameter2: "Two",
+		Parameter3: "Three",
+	}
+
+	ptr := &configType
+
+	// configType must be a pointer to a struct
+	if reflect.ValueOf(ptr).Kind() != reflect.Ptr {
+		log.Println("invalid configType: must be a pointer to a struct")
+		t.FailNow()
+	}
+	if reflect.Indirect(reflect.ValueOf(ptr)).Kind() != reflect.Struct {
+		log.Println("invalid configType: not a struct")
+		t.FailNow()
+	}
+
+	//if reflect.ValueOf(ptr).Elem().Kind() != reflect.Struct {
+	//	t.FailNow()
+	//}
+}
+
+func TestKeyNames(t *testing.T) {
+	configType := TestConfigType{
+		Parameter1: "One",
+		Parameter2: "Two",
+		Parameter3: "Three",
+	}
+
+	keys, _, err := keyValueMap(&configType)
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
@@ -53,16 +141,77 @@ func TestKeyNames(t *testing.T) {
 	}
 }
 
+func TestKeyNamesEmptyConfigType(t *testing.T) {
+	var configType TestConfigType
+
+	keys, _, err := keyValueMap(&configType)
+	if err != nil {
+		log.Println(err)
+		t.FailNow()
+	}
+
+	expectedKeys := []string{"Parameter1", "Parameter2", "Parameter3"}
+	if !reflect.DeepEqual(keys, expectedKeys) {
+		log.Println("unexpected keys:", keys)
+		log.Println("expected:", expectedKeys)
+		t.FailNow()
+	}
+}
+
+func TestKeyValueMap(t *testing.T) {
+	configType := TestConfigType{
+		Parameter1: "One",
+		Parameter2: "Two",
+		Parameter3: "Three",
+	}
+
+	expectedMap := map[string]string{
+		"Parameter1": "One",
+		"Parameter2": "Two",
+		"Parameter3": "Three",
+	}
+
+	_, configMap, err := keyValueMap(&configType)
+	if err != nil {
+		log.Println(err)
+		t.FailNow()
+	}
+	log.Println(configMap)
+	log.Println(expectedMap)
+}
+
+func TestKeyValueMapEmptyConfigType(t *testing.T) {
+	var configType TestConfigType
+
+	expectedMap := map[string]string{
+		"Parameter1": "One",
+		"Parameter2": "Two",
+		"Parameter3": "Three",
+	}
+
+	_, configMap, err := keyValueMap(&configType)
+	if err != nil {
+		log.Println(err)
+		t.FailNow()
+	}
+	log.Println(configMap)
+	log.Println(expectedMap)
+}
+
 func TestDefaultTags(t *testing.T) {
 	var configType TestConfigType
 
-	keys, err := keyNames(&configType)
+	keys, _, err := keyValueMap(&configType)
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
 	}
 
 	defaults := parseTag(&configType, keys, "default")
+	if err != nil {
+		log.Println(err)
+		t.FailNow()
+	}
 
 	expectedDefaults := map[string]string{
 		"Parameter1": "one",
@@ -79,13 +228,17 @@ func TestDefaultTags(t *testing.T) {
 func TestEnvTags(t *testing.T) {
 	var configType TestConfigType
 
-	keys, err := keyNames(&configType)
+	keys, _, err := keyValueMap(&configType)
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
 	}
 
 	env := parseTag(&configType, keys, "env")
+	if err != nil {
+		log.Println(err)
+		t.FailNow()
+	}
 
 	expectedEnv := map[string]string{
 		"Parameter1": "PARAMETER_1",
@@ -102,13 +255,17 @@ func TestEnvTags(t *testing.T) {
 func TestRequiredKeys(t *testing.T) {
 	var configType TestConfigType
 
-	keys, err := keyNames(&configType)
+	keys, _, err := keyValueMap(&configType)
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
 	}
 
 	required := requiredKeys(&configType, keys)
+	if err != nil {
+		log.Println(err)
+		t.FailNow()
+	}
 
 	expectedRequired := map[string]bool{
 		"Parameter1": false,
@@ -126,12 +283,31 @@ func TestRequiredKeys(t *testing.T) {
 func TestParseEnvConfig(t *testing.T) {
 	_ = os.Setenv("PARAMETER_3", "three")
 
-	var config TestConfigType
-	err := ParseEnvConfig(&config)
+	var configType TestConfigType
+	err := ParseEnvConfig(&configType)
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
 	}
 
-	log.Println(&config)
+	log.Println(&configType)
+}
+
+func TestValidateConfig(t *testing.T) {
+	_ = os.Setenv("PARAMETER_3", "three")
+
+	var configType TestConfigType
+
+	err := ParseEnvConfig(&configType)
+	if err != nil {
+		log.Println(err)
+		t.FailNow()
+	}
+	err = ValidateConfig(&configType)
+	if err != nil {
+		log.Println(err)
+		t.FailNow()
+	}
+
+	log.Println(&configType)
 }
