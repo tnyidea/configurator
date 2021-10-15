@@ -8,9 +8,9 @@ import (
 	"strings"
 )
 
-func ParseEnvConfig(configType interface{}, configFile ...string) error {
-	// configType must be a pointer to a struct
-	err := checkConfigTypeKind(configType)
+func ParseEnvConfig(v interface{}, configFile ...string) error {
+	// configType must be a pointer to a struct and not nil
+	err := checkKind(v)
 	if err != nil {
 		return err
 	}
@@ -18,7 +18,7 @@ func ParseEnvConfig(configType interface{}, configFile ...string) error {
 	viperConfig := viper.New()
 
 	// Get configuration key names and validate config type
-	keys, _, err := keyValueMap(configType)
+	keys, _, err := keyValueMap(v)
 	if err != nil {
 		return err
 	}
@@ -26,18 +26,18 @@ func ParseEnvConfig(configType interface{}, configFile ...string) error {
 	// At this point, we know that configType is a struct with string fields only
 
 	// Parse configuration defaults
-	defaults := parseTag(configType, keys, "default")
-	for _, k := range keys {
-		if v, ok := defaults[k]; ok {
-			viperConfig.SetDefault(k, v)
+	defaults := parseTag(v, keys, "default")
+	for _, key := range keys {
+		if keyValue, ok := defaults[key]; ok {
+			viperConfig.SetDefault(key, keyValue)
 		}
 	}
 
 	// Bind environment variables
-	env := parseTag(configType, keys, "env")
-	for _, k := range keys {
-		if v, ok := env[k]; ok {
-			_ = viperConfig.BindEnv(k, v)
+	env := parseTag(v, keys, "env")
+	for _, key := range keys {
+		if keyValue, ok := env[key]; ok {
+			_ = viperConfig.BindEnv(key, keyValue)
 		}
 	}
 
@@ -74,17 +74,17 @@ func ParseEnvConfig(configType interface{}, configFile ...string) error {
 	//	return errors.New("invalid configuration: missing required values:\n" + strings.Join(messages, "\n"))
 	//}
 	//
-	e := reflect.ValueOf(configType).Elem()
-	for _, k := range keys {
-		e.FieldByName(k).SetString(viperConfig.GetString(k))
+	e := reflect.ValueOf(v).Elem()
+	for _, key := range keys {
+		e.FieldByName(key).SetString(viperConfig.GetString(key))
 	}
 
 	return nil
 }
 
 func ValidateConfig(configType interface{}) error {
-	// configType must be a pointer to a struct
-	err := checkConfigTypeKind(configType)
+	// configType must be a pointer to a struct and not nil
+	err := checkKind(configType)
 	if err != nil {
 		return err
 	}
@@ -96,35 +96,34 @@ func ValidateConfig(configType interface{}) error {
 	}
 	required := requiredKeys(configType, keys)
 
-	var flag bool
 	var messages []string
-	for k, v := range required {
-		if v && keyValues[k] == "" {
-			messages = append(messages, k+" not set")
-			flag = true
+	for key, keyRequired := range required {
+		if keyRequired && keyValues[key] == "" {
+			messages = append(messages, key+" not set")
 		}
 	}
-	if flag {
+	if messages != nil {
 		return errors.New("invalid configuration: missing required values:\n" + strings.Join(messages, "\n"))
 	}
 
 	return nil
 }
 
-func checkConfigTypeKind(configType interface{}) error {
-	// configType must be a pointer to a struct
-	if reflect.ValueOf(configType).Kind() != reflect.Ptr {
-		return errors.New("invalid configType: must be a pointer to a struct")
+func checkKind(v interface{}) error {
+	rv := reflect.ValueOf(v)
+	if rv.Kind() != reflect.Ptr || rv.IsNil() {
+		return errors.New("invalid type: must be a pointer to a struct")
 	}
-	if reflect.Indirect(reflect.ValueOf(configType)).Kind() != reflect.Struct {
-		return errors.New("invalid configType: not a struct")
+	if reflect.Indirect(rv).Kind() != reflect.Struct {
+		return errors.New("invalid type: must be a pointer to a struct")
 	}
 
 	return nil
 }
 
 func keyValueMap(configType interface{}) ([]string, map[string]string, error) {
-	// assume configType is a pointer to a struct, caller must first use checkConfigTypeKind
+	// assume v is a pointer to a struct
+	// caller must first use checkKind
 
 	e := reflect.ValueOf(configType).Elem()
 
@@ -144,7 +143,8 @@ func keyValueMap(configType interface{}) ([]string, map[string]string, error) {
 }
 
 func requiredKeys(configType interface{}, keys []string) map[string]bool {
-	// assume configType is a pointer to a struct, caller must first use checkConfigTypeKind
+	// assume v is a pointer to a struct
+	// caller must first use checkKind
 
 	requiredTags := parseTag(configType, keys, "config")
 
@@ -160,17 +160,18 @@ func requiredKeys(configType interface{}, keys []string) map[string]bool {
 	return result
 }
 
-func parseTag(configType interface{}, keys []string, tagName string) map[string]string {
-	// assume configType is a pointer to a struct, caller must first use checkConfigTypeKind
+func parseTag(v interface{}, keys []string, tag string) map[string]string {
+	// assume v is a pointer to a struct
+	// caller must first use checkKind
 
-	e := reflect.ValueOf(configType).Elem()
+	e := reflect.ValueOf(v).Elem()
 
 	tagValues := make(map[string]string)
 	for _, k := range keys {
 		f, _ := e.Type().FieldByName(k)
-		v := f.Tag.Get(tagName)
-		if v != "" {
-			tagValues[k] = v
+		tagValue := f.Tag.Get(tag)
+		if tagValue != "" {
+			tagValues[k] = tagValue
 		}
 	}
 
