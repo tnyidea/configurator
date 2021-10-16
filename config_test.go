@@ -127,7 +127,7 @@ func TestKeyNames(t *testing.T) {
 		Parameter3: "Three",
 	}
 
-	keys, _, err := keyValueMap(&configType)
+	keys, _, err := fieldValueMap(&configType)
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
@@ -144,7 +144,7 @@ func TestKeyNames(t *testing.T) {
 func TestKeyNamesEmptyConfigType(t *testing.T) {
 	var configType TestConfigType
 
-	keys, _, err := keyValueMap(&configType)
+	keys, _, err := fieldValueMap(&configType)
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
@@ -158,7 +158,7 @@ func TestKeyNamesEmptyConfigType(t *testing.T) {
 	}
 }
 
-func TestKeyValueMap(t *testing.T) {
+func TestFieldValueMap(t *testing.T) {
 	configType := TestConfigType{
 		Parameter1: "One",
 		Parameter2: "Two",
@@ -171,7 +171,7 @@ func TestKeyValueMap(t *testing.T) {
 		"Parameter3": "Three",
 	}
 
-	_, configMap, err := keyValueMap(&configType)
+	_, configMap, err := fieldValueMap(&configType)
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
@@ -180,7 +180,7 @@ func TestKeyValueMap(t *testing.T) {
 	log.Println(expectedMap)
 }
 
-func TestKeyValueMapEmptyConfigType(t *testing.T) {
+func TestFieldValueMapEmptyConfigType(t *testing.T) {
 	var configType TestConfigType
 
 	expectedMap := map[string]string{
@@ -189,7 +189,7 @@ func TestKeyValueMapEmptyConfigType(t *testing.T) {
 		"Parameter3": "Three",
 	}
 
-	_, configMap, err := keyValueMap(&configType)
+	_, configMap, err := fieldValueMap(&configType)
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
@@ -201,13 +201,13 @@ func TestKeyValueMapEmptyConfigType(t *testing.T) {
 func TestDefaultTags(t *testing.T) {
 	var configType TestConfigType
 
-	keys, _, err := keyValueMap(&configType)
+	keys, _, err := fieldValueMap(&configType)
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
 	}
 
-	defaults := parseTag(&configType, keys, "default")
+	defaults := parseTagValues(&configType, keys, "default")
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
@@ -228,13 +228,13 @@ func TestDefaultTags(t *testing.T) {
 func TestEnvTags(t *testing.T) {
 	var configType TestConfigType
 
-	keys, _, err := keyValueMap(&configType)
+	keys, _, err := fieldValueMap(&configType)
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
 	}
 
-	env := parseTag(&configType, keys, "env")
+	env := parseTagValues(&configType, keys, "env")
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
@@ -255,13 +255,13 @@ func TestEnvTags(t *testing.T) {
 func TestRequiredKeys(t *testing.T) {
 	var configType TestConfigType
 
-	keys, _, err := keyValueMap(&configType)
+	keys, _, err := fieldValueMap(&configType)
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
 	}
 
-	required := requiredKeys(&configType, keys)
+	required := requiredFieldMap(&configType, keys)
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
@@ -285,6 +285,17 @@ func TestParseEnvConfig(t *testing.T) {
 
 	var configType TestConfigType
 	err := ParseEnvConfig(&configType)
+	if err != nil {
+		log.Println(err)
+		t.FailNow()
+	}
+
+	log.Println(&configType)
+}
+
+func TestParseEnvConfigFile(t *testing.T) {
+	var configType TestConfigType
+	err := ParseEnvConfig(&configType, "config_test.env")
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
