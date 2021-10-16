@@ -1,15 +1,41 @@
 package configurator
 
 import (
+	"bufio"
 	"errors"
 	"github.com/spf13/viper"
-	"log"
+	"os"
 	"reflect"
 	"sort"
 	"strings"
 )
 
-func ParseEnvConfig(v interface{}, configFile ...string) error {
+func SetEnvFromFile(filename string) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = file.Close()
+	}()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		if err = scanner.Err(); err != nil {
+			return err
+		}
+
+		// Only handle items of form VARIABLE=value
+		tokens := strings.Split(scanner.Text(), "=")
+		if len(tokens) == 2 {
+			_ = os.Setenv(tokens[0], tokens[1])
+		}
+	}
+
+	return nil
+}
+
+func ParseEnvConfig(v interface{}) error {
 	// configType must be a pointer to a struct and not nil
 	err := checkKind(v)
 	if err != nil {
@@ -42,67 +68,31 @@ func ParseEnvConfig(v interface{}, configFile ...string) error {
 		}
 	}
 
-	// Parse configuration file (if provided)
-	if configFile != nil {
-		filename := configFile[0]
-		tokens := strings.Split(filename, ".")
-
-		var ok bool
-		if len(tokens) != 2 && tokens[1] != "env" {
-			log.Println("ignoring file: " + filename + ": must have .env extension")
-			ok = false
-		}
-		if ok {
-			viperConfig.SetConfigFile(tokens[0])
-			err := viperConfig.ReadInConfig()
-			log.Println(viperConfig)
-			if err != nil {
-				return errors.New("invalid configuration: " + err.Error())
-			}
-		}
-	}
-
-	// Parse environment variables
+	// Parse environment
 	viperConfig.AutomaticEnv()
 
-	// Validate Configuration
-	//required := requiredKeys(configType, keys)
-	//if err != nil {
-	//	return err
-	//}
-	//var flag bool
-	//var messages []string
-	//for k, v := range required {
-	//	if v && !viperConfig.IsSet(k) {
-	//		messages = append(messages, k+" not set")
-	//		flag = true
-	//	}
-	//}
-	//if flag {
-	//	return errors.New("invalid configuration: missing required values:\n" + strings.Join(messages, "\n"))
-	//}
-	//
-	e := reflect.ValueOf(v).Elem()
+	// Set the values of v
+	rve := reflect.ValueOf(v).Elem()
 	for _, fieldName := range fieldNames {
-		e.FieldByName(fieldName).SetString(viperConfig.GetString(fieldName))
+		rve.FieldByName(fieldName).SetString(viperConfig.GetString(fieldName))
 	}
 
 	return nil
 }
 
-func ValidateConfig(configType interface{}) error {
+func ValidateConfig(v interface{}) error {
 	// configType must be a pointer to a struct and not nil
-	err := checkKind(configType)
+	err := checkKind(v)
 	if err != nil {
 		return err
 	}
 
 	// Get configuration key names, values, and required keys
-	fieldNames, fieldValues, err := fieldValueMap(configType)
+	fieldNames, fieldValues, err := fieldValueMap(v)
 	if err != nil {
 		return err
 	}
-	requiredFields := requiredFieldMap(configType, fieldNames)
+	requiredFields := requiredFieldMap(v, fieldNames)
 
 	var messages []string
 	for fieldName, isRequired := range requiredFields {
@@ -117,6 +107,7 @@ func ValidateConfig(configType interface{}) error {
 	return nil
 }
 
+// Helpers
 func checkKind(v interface{}) error {
 	rv := reflect.ValueOf(v)
 	if rv.Kind() != reflect.Ptr || rv.IsNil() {
@@ -127,6 +118,24 @@ func checkKind(v interface{}) error {
 	}
 
 	return nil
+}
+
+func parseTagValues(v interface{}, fieldNames []string, tag string) map[string]string {
+	// assume v is a pointer to a struct
+	// caller must first use checkKind
+
+	rve := reflect.ValueOf(v).Elem()
+
+	tagValues := make(map[string]string)
+	for _, fieldName := range fieldNames {
+		field, _ := rve.Type().FieldByName(fieldName)
+		tagValue := field.Tag.Get(tag)
+		if tagValue != "" {
+			tagValues[fieldName] = tagValue
+		}
+	}
+
+	return tagValues
 }
 
 func fieldValueMap(configType interface{}) ([]string, map[string]string, error) {
@@ -166,22 +175,4 @@ func requiredFieldMap(configType interface{}, keys []string) map[string]bool {
 	}
 
 	return result
-}
-
-func parseTagValues(v interface{}, fieldNames []string, tag string) map[string]string {
-	// assume v is a pointer to a struct
-	// caller must first use checkKind
-
-	rve := reflect.ValueOf(v).Elem()
-
-	tagValues := make(map[string]string)
-	for _, fieldName := range fieldNames {
-		field, _ := rve.Type().FieldByName(fieldName)
-		tagValue := field.Tag.Get(tag)
-		if tagValue != "" {
-			tagValues[fieldName] = tagValue
-		}
-	}
-
-	return tagValues
 }

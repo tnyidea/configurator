@@ -294,8 +294,16 @@ func TestParseEnvConfig(t *testing.T) {
 }
 
 func TestParseEnvConfigFile(t *testing.T) {
+	_ = os.Unsetenv("PARAMETER_3")
+
+	err := SetEnvFromFile("config_test.env")
+	if err != nil {
+		log.Println(err)
+		t.FailNow()
+	}
+
 	var configType TestConfigType
-	err := ParseEnvConfig(&configType, "config_test.env")
+	err = ParseEnvConfig(&configType)
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
