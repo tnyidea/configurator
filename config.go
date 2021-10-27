@@ -148,8 +148,8 @@ func fieldValueMap(configType interface{}) ([]string, map[string]string, error) 
 	fieldValues := make(map[string]string)
 	for i := 0; i < rve.NumField(); i++ {
 		field := rve.Type().Field(i)
-		if field.Tag.Get("config") != "" && field.Type.Kind() != reflect.String {
-			return nil, nil, errors.New("invalid configType: struct fields with config tag must be of type string")
+		if field.Tag.Get("env") != "" && field.Type.Kind() != reflect.String {
+			return nil, nil, errors.New("invalid configType: struct fields with 'env' tag must be of type string")
 		}
 		fieldNames = append(fieldNames, field.Name)
 		fieldValues[field.Name] = rve.Field(i).String()
