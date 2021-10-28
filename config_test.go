@@ -8,6 +8,8 @@ import (
 	"testing"
 )
 
+// TODO if something wants to be config'd it must have a config tag..
+//   of the form config:"env=ENV_VAR,default=two,required"
 type TestConfigType struct {
 	Parameter1 string `json:"parameter1" env:"PARAMETER_1" default:"one" `
 	Parameter2 string `json:"parameter2" default:"two" config:"required"`
@@ -201,17 +203,7 @@ func TestFieldValueMapEmptyConfigType(t *testing.T) {
 func TestDefaultTags(t *testing.T) {
 	var configType TestConfigType
 
-	keys, _, err := fieldValueMap(&configType)
-	if err != nil {
-		log.Println(err)
-		t.FailNow()
-	}
-
-	defaults := parseTagValues(&configType, keys, "default")
-	if err != nil {
-		log.Println(err)
-		t.FailNow()
-	}
+	_, defaults := parseTagValues(&configType, "default")
 
 	expectedDefaults := map[string]string{
 		"Parameter1": "one",
@@ -228,17 +220,7 @@ func TestDefaultTags(t *testing.T) {
 func TestEnvTags(t *testing.T) {
 	var configType TestConfigType
 
-	keys, _, err := fieldValueMap(&configType)
-	if err != nil {
-		log.Println(err)
-		t.FailNow()
-	}
-
-	env := parseTagValues(&configType, keys, "env")
-	if err != nil {
-		log.Println(err)
-		t.FailNow()
-	}
+	_, env := parseTagValues(&configType, "env")
 
 	expectedEnv := map[string]string{
 		"Parameter1": "PARAMETER_1",
@@ -255,27 +237,16 @@ func TestEnvTags(t *testing.T) {
 func TestRequiredKeys(t *testing.T) {
 	var configType TestConfigType
 
-	keys, _, err := fieldValueMap(&configType)
-	if err != nil {
-		log.Println(err)
-		t.FailNow()
-	}
+	requiredFields := requiredFieldMap(&configType)
 
-	required := requiredFieldMap(&configType, keys)
-	if err != nil {
-		log.Println(err)
-		t.FailNow()
-	}
-
-	expectedRequired := map[string]bool{
-		"Parameter1": false,
+	expectedRequiredFields := map[string]bool{
 		"Parameter2": true,
 		"Parameter3": true,
 	}
 
-	if !reflect.DeepEqual(required, expectedRequired) {
-		log.Println("unexpected required tags:", required)
-		log.Println("expected:", expectedRequired)
+	if !reflect.DeepEqual(requiredFields, expectedRequiredFields) {
+		log.Println("unexpected required fields:", requiredFields)
+		log.Println("expected:", expectedRequiredFields)
 		t.FailNow()
 	}
 }

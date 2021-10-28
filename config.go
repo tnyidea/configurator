@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"errors"
 	"github.com/spf13/viper"
+	"log"
 	"os"
 	"reflect"
 	"sort"
@@ -45,7 +46,10 @@ func ParseEnvConfig(v interface{}) error {
 	viperConfig := viper.New()
 
 	// Get configuration field names and validate config type
-	fieldNames, _, err := fieldValueMap(v)
+	// TODO this is not quite the best idea -- we are taking apart the field map based on an env tag
+	//  if that env tag has a non-string value then this craps out (which is what we want... but maybe just do that in
+	//  check kind?
+	_, _, err = fieldValueMap(v)
 	if err != nil {
 		return err
 	}
@@ -53,27 +57,25 @@ func ParseEnvConfig(v interface{}) error {
 	// At this point, we know that configType is a struct with string fields only
 
 	// Parse configuration defaults
-	defaults := parseTagValues(v, fieldNames, "default")
-	for _, fieldName := range fieldNames {
-		if fieldValue, ok := defaults[fieldName]; ok {
-			viperConfig.SetDefault(fieldName, fieldValue)
-		}
+	defaultTagFieldNames, defaultTagValues := parseTagValues(v, "default")
+	log.Println("THE DEFAULTS ARE:", defaultTagFieldNames)
+	log.Println("THE DEFAULT VALUES ARE:", defaultTagValues)
+	for _, fieldName := range defaultTagFieldNames {
+		viperConfig.SetDefault(fieldName, defaultTagValues[fieldName])
 	}
 
-	// Bind environment variables
-	env := parseTagValues(v, fieldNames, "env")
-	for _, fieldName := range fieldNames {
-		if fieldValue, ok := env[fieldName]; ok {
-			_ = viperConfig.BindEnv(fieldName, fieldValue)
-		}
+	// Bind environment variables and parse the environment
+	envTagFieldNames, envTagValues := parseTagValues(v, "env")
+	for _, fieldName := range envTagFieldNames {
+		_ = viperConfig.BindEnv(fieldName, envTagValues[fieldName])
 	}
-
-	// Parse environment
 	viperConfig.AutomaticEnv()
 
-	// Set the values of v
+	// Finally, configure v: Set the values of v
 	rve := reflect.ValueOf(v).Elem()
-	for _, fieldName := range fieldNames {
+	for _, fieldName := range envTagFieldNames {
+		log.Println("SETTING FIELD:", fieldName)
+		log.Println("WITH VALUE:", viperConfig.GetString(fieldName))
 		rve.FieldByName(fieldName).SetString(viperConfig.GetString(fieldName))
 	}
 
@@ -87,12 +89,12 @@ func ValidateConfig(v interface{}) error {
 		return err
 	}
 
-	// Get configuration key names, values, and required keys
-	fieldNames, fieldValues, err := fieldValueMap(v)
+	// Get required field names and current field values
+	requiredFields := requiredFieldMap(v)
+	_, fieldValues, err := fieldValueMap(v)
 	if err != nil {
 		return err
 	}
-	requiredFields := requiredFieldMap(v, fieldNames)
 
 	var messages []string
 	for fieldName, isRequired := range requiredFields {
@@ -120,22 +122,24 @@ func checkKind(v interface{}) error {
 	return nil
 }
 
-func parseTagValues(v interface{}, fieldNames []string, tag string) map[string]string {
+func parseTagValues(v interface{}, tag string) ([]string, map[string]string) {
 	// assume v is a pointer to a struct
-	// caller must first use checkKind
 
 	rve := reflect.ValueOf(v).Elem()
 
+	var fieldNames []string
 	tagValues := make(map[string]string)
-	for _, fieldName := range fieldNames {
-		field, _ := rve.Type().FieldByName(fieldName)
+	for i := 0; i < rve.NumField(); i++ {
+		field := rve.Type().Field(i)
+		fieldName := field.Name
 		tagValue := field.Tag.Get(tag)
 		if tagValue != "" {
+			fieldNames = append(fieldNames, fieldName)
 			tagValues[fieldName] = tagValue
 		}
 	}
 
-	return tagValues
+	return fieldNames, tagValues
 }
 
 func fieldValueMap(configType interface{}) ([]string, map[string]string, error) {
@@ -148,6 +152,7 @@ func fieldValueMap(configType interface{}) ([]string, map[string]string, error) 
 	fieldValues := make(map[string]string)
 	for i := 0; i < rve.NumField(); i++ {
 		field := rve.Type().Field(i)
+		// TODO this is not ideal, as it checks the env tag only... move this to checkKind
 		if field.Tag.Get("env") != "" && field.Type.Kind() != reflect.String {
 			return nil, nil, errors.New("invalid configType: struct fields with 'env' tag must be of type string")
 		}
@@ -159,14 +164,14 @@ func fieldValueMap(configType interface{}) ([]string, map[string]string, error) 
 	return fieldNames, fieldValues, nil
 }
 
-func requiredFieldMap(configType interface{}, keys []string) map[string]bool {
+func requiredFieldMap(configType interface{}) map[string]bool {
 	// assume v is a pointer to a struct
 	// caller must first use checkKind
 
-	requiredTags := parseTagValues(configType, keys, "config")
+	requiredFields, requiredTags := parseTagValues(configType, "config")
 
 	result := make(map[string]bool)
-	for _, k := range keys {
+	for _, k := range requiredFields {
 		if v, ok := requiredTags[k]; !ok {
 			result[k] = false
 		} else {
