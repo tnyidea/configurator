@@ -10,12 +10,6 @@ func SetDefaultValues(v interface{}) error {
 		return err
 	}
 
-	// TODO this is temporary for initial version; future versions should allow other types in a struct
-	err = checkStructFieldsKindString(reflect.Indirect(reflect.ValueOf(v)).Interface())
-	if err != nil {
-		return err
-	}
-
 	dm := parseDefaultMetadata(v)
 	setValuesFromFieldNameValueMap(v, dm.fieldNameDefaultValueMap)
 

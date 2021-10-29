@@ -13,12 +13,6 @@ func SetValuesFromOsEnv(v interface{}) error {
 		return err
 	}
 
-	// TODO this is temporary for initial version; future versions should allow other types in a struct
-	err = checkStructFieldsKindString(reflect.Indirect(reflect.ValueOf(v)).Interface())
-	if err != nil {
-		return err
-	}
-
 	em := parseEnvMetadata(v)
 
 	var fieldNameValueMap map[string]interface{}
@@ -40,12 +34,6 @@ func SetValuesFromOsEnv(v interface{}) error {
 
 func SetValuesFromEnvFile(v interface{}, filename string) error {
 	err := checkKindStructPtr(v)
-	if err != nil {
-		return err
-	}
-
-	// TODO this is temporary for initial version; future versions should allow other types in a struct
-	err = checkStructFieldsKindString(reflect.Indirect(reflect.ValueOf(v)).Interface())
 	if err != nil {
 		return err
 	}
