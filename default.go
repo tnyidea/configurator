@@ -4,14 +4,33 @@ import (
 	"reflect"
 )
 
-func SetDefaultValues(v interface{}) error {
+func SetAllDefaultValues(v interface{}) error {
+	return setDefaultValues(v, false)
+}
+
+func SetEmptyFieldDefaultValues(v interface{}) error {
+	return setDefaultValues(v, true)
+}
+
+func setDefaultValues(v interface{}, setZeroOnly bool) error {
 	err := checkKindStructPtr(v)
 	if err != nil {
 		return err
 	}
 
 	dm := parseDefaultMetadata(v)
-	setValuesFromFieldNameValueMap(v, dm.fieldNameDefaultValueMap)
+
+	fieldNameValueMap := dm.fieldNameDefaultValueMap
+
+	if setZeroOnly { // if setZeroOnly, delete the non-zero struct fields from the map
+		sm := parseStructMetadata(v)
+		for _, fieldName := range dm.fieldNames {
+			if !reflect.ValueOf(sm.fieldNameValueMap[fieldName]).IsZero() {
+				delete(fieldNameValueMap, fieldName)
+			}
+		}
+	}
+	setValuesFromFieldNameValueMap(v, fieldNameValueMap)
 
 	return nil
 }

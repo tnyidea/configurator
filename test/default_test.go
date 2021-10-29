@@ -28,10 +28,24 @@ func (p *defaultTestType) String() string {
 	return string(byteValue)
 }
 
-func TestSetDefaultValues(t *testing.T) {
+func TestSetAllDefaultValues(t *testing.T) {
 	var testValue defaultTestType
 
-	err := configurator.SetDefaultValues(&testValue)
+	err := configurator.SetAllDefaultValues(&testValue)
+	if err != nil {
+		log.Println(err)
+		t.FailNow()
+	}
+
+	log.Println(&testValue)
+}
+
+func TestSetEmptyFieldDefaultValues(t *testing.T) {
+	testValue := defaultTestType{
+		Parameter1: "setAlready",
+	}
+
+	err := configurator.SetEmptyFieldDefaultValues(&testValue)
 	if err != nil {
 		log.Println(err)
 		t.FailNow()
