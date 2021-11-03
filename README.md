@@ -1,6 +1,6 @@
 # configurator
 
-A Go configurator library powered by Viper
+A simple Go configurator library
 
 ## Example
 Create your own struct and optionally tag the fields with default values, environment variables and
@@ -8,7 +8,7 @@ if the value is required
 ```go
 package myserver
 
-import "github.com/gbnyc26/configurator"
+import "github.com/tnyidea/configurator"
 
 type Server struct {
 	Port    string `default:"80" env:"PORT" config:"required"`

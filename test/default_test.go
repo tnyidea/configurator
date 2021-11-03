@@ -2,7 +2,7 @@ package test
 
 import (
 	"encoding/json"
-	"github.com/gbnyc26/configurator"
+	"github.com/tnyidea/configurator"
 	"log"
 	"reflect"
 	"testing"

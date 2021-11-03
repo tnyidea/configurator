@@ -1,7 +1,7 @@
 package test
 
 import (
-	"github.com/gbnyc26/configurator"
+	"github.com/tnyidea/configurator"
 	"log"
 	"os"
 	"testing"
